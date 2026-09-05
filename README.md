@@ -1,9 +1,20 @@
 
 
 evidencias:
-![alt text](<images/Captura de pantalla 2026-08-22 082610.png>)
-![alt text](<images/Captura de pantalla 2026-08-26 194509.png>)
-![alt text](<images/Captura de pantalla 2026-08-26 194621.png>)
+
+![alt text](<Images2/Captura de pantalla 2026-09-05 075015.png>)
+![alt text](<Images2/Captura de pantalla 2026-09-05 075628.png>)
+![alt text](<Images2/Captura de pantalla 2026-09-05 081618.png>)
+![alt text](<Images2/Captura de pantalla 2026-09-05 081919.png>)
+![alt text](<Images2/Captura de pantalla 2026-09-05 081954.png>)
+![alt text](<Images2/Captura de pantalla 2026-09-05 082042.png>)
+![alt text](<Images2/Captura de pantalla 2026-09-05 082203.png>)
+![alt text](<Images2/Captura de pantalla 2026-09-05 082327.png>)
+![alt text](<Images2/Captura de pantalla 2026-09-05 082543.png>)
+![alt text](<Images2/Captura de pantalla 2026-09-05 082721.png>)
+![alt text](<Images2/Captura de pantalla 2026-09-05 085815.png>)
+![alt text](Images2/image.png)
+![alt text](<Images2/image copy.png>)
 
 # device_systems
 
@@ -48,7 +59,7 @@ Cada capa tiene una única responsabilidad:
 ## Instalación
 
 ```bash
-git clone <URL-de-tu-repositorio>
+git clone <https://github.com/peaceathome316-Tic/device_systems.git>
 cd device_systems
 
 python -m venv venv
