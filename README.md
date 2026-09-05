@@ -200,23 +200,6 @@ Además, un middleware en `main.py` agrega las cabeceras `X-App-Name` y `X-API-V
 - **`develop`**: rama de integración creada a partir de `main`.
 - **`feature`**: rama donde se desarrolló el CRUD completo de esta actividad (PUT, PATCH, DELETE, reestructuración en capas, Dependency Injection). Se fusionó hacia `develop` una vez probada.
 
-## Evidencia de pruebas
+Reflexión final sobre la evolución del proyecto
 
-> Reemplaza esta sección con tus propias capturas.
-
-- [ ] Captura de Swagger UI (`/docs`) mostrando todos los endpoints.
-- [ ] Captura de ReDoc (`/redoc`).
-- [ ] Captura de `GET /users` → 200.
-- [ ] Captura de `POST /users` con correo duplicado → 400.
-- [ ] Captura de `POST /users` con datos inválidos → 422.
-- [ ] Captura de `PUT /users/{id}` a usuario inexistente → 404.
-- [ ] Captura de `PATCH /users/{id}` vacío → 400.
-- [ ] Captura de `DELETE /users/{id}` a usuario inexistente → 404.
-
-## Reflexión final sobre la evolución del proyecto
-
-> Espacio para tu reflexión personal. Algunas preguntas que puedes responder:
-> - ¿Qué cambió entre la versión anterior (solo GET/POST) y esta?
-> - ¿Qué ventaja concreta trajo separar el código en `routes/schemas/services/dependencies/data` en vez de tenerlo todo junto?
-> - ¿Cómo te ayudó `Depends()` a evitar código repetido?
-> - ¿Qué tan útil fue Swagger UI para probar la API sin necesidad de Postman?
+Esta actividad me mostró cómo una API simple (solo GET y POST) puede evolucionar a algo más profesional. Separar el código en capas (routes, schemas, services, dependencies) hizo que agregar PUT, PATCH y DELETE fuera mucho más ordenado, sin tocar lo que ya funcionaba. Depends() me ayudó a dejar de repetir la validación de "usuario no encontrado" en cada endpoint, y el manejo de errores con HTTPException hizo que la API respondiera de forma clara ante casos como correos duplicados o IDs inexistentes. Trabajar con ramas (main, develop, feature) también me enseñó a probar cambios sin arriesgar lo que ya estaba estable.
