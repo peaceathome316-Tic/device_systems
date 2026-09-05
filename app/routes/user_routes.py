@@ -1,75 +1,101 @@
-from fastapi import APIRouter, HTTPException, status, Query, Response
+from fastapi import APIRouter, status, Query, Depends
 from typing import List, Optional
-from app.schemas.user_schema import UserCreate, UserResponse, UserRole
+
+from app.schemas.user_schema import UserCreate, UserUpdate, UserBase, UserResponse, UserRole
+from app.dependencies.user_dependencies import get_user_or_404
+from app.services import user_service
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-# Base de datos simulada en memoria con un usuario de prueba
-db_users = [
-    {
-        "id": 1,
-        "name": "cristian jaramillo",
-        "email": "cristian@device.com",
-        "role": "admin",
-        "is_active": True
-    }
-]
-id_counter = 2
 
-# Función auxiliar para inyectar cabeceras personalizadas (Fase 5)
-def set_custom_headers(response: Response):
-    response.headers["X-App-Name"] = "device_systems"
-    response.headers["X-API-Version"] = "1.0"
+# --- CREAR USUARIO (POST) ---
+@router.post(
+    "/",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear un nuevo usuario",
+    description="Registra un nuevo usuario en device_systems. Valida que el correo no esté duplicado.",
+    response_description="Usuario creado exitosamente.",
+)
+def create_user(user: UserCreate):
+    return user_service.create_user(user.model_dump())
 
-# --- FASE 4: REGISTRAR USUARIO (POST) ---
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(user: UserCreate, response: Response):
-    global id_counter
-    
-    # Validar correo duplicado
-    if any(u["email"] == user.email for u in db_users):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El correo electrónico ya está registrado en device_systems."
-        )
-    
-    user_dict = user.model_dump()
-    user_dict["id"] = id_counter
-    db_users.append(user_dict)
-    id_counter += 1
-    
-    set_custom_headers(response)
-    return user_dict
 
-# --- FASE 3: OBTENER USUARIOS Y FILTRAR (GET) ---
-@router.get("/", response_model=List[UserResponse], status_code=status.HTTP_200_OK)
+# --- LISTAR / FILTRAR USUARIOS (GET) ---
+@router.get(
+    "/",
+    response_model=List[UserResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Listar usuarios",
+    description="Devuelve la lista de usuarios, con filtros opcionales por rol y estado activo.",
+    response_description="Lista de usuarios.",
+)
 def get_users(
-    response: Response,
-    role: Optional[UserRole] = Query(None, description="Filtrar por rol (admin, support, user)"),
-    is_active: Optional[bool] = Query(None, description="Filtrar por estado activo/inactivo")
+    role: Optional[UserRole] = Query(None, description="Filtrar por rol (admin, operator, user)"),
+    is_active: Optional[bool] = Query(None, description="Filtrar por estado activo/inactivo"),
 ):
-    filtered_users = db_users
-    
-    # Filtro por rol (?role=admin)
-    if role is not None:
-        filtered_users = [u for u in filtered_users if u["role"] == role]
-        
-    # Filtro por estado activo (?is_active=true)
-    if is_active is not None:
-        filtered_users = [u for u in filtered_users if u["is_active"] == is_active]
-        
-    set_custom_headers(response)
-    return filtered_users
+    return user_service.list_users(role=role, is_active=is_active)
 
-# --- FASE 3: OBTENER USUARIO POR ID (GET /{user_id}) ---
-@router.get("/{user_id}", response_model=UserResponse, status_code=status.HTTP_200_OK)
-def get_user_by_id(user_id: int, response: Response):
-    for u in db_users:
-        if u["id"] == user_id:
-            set_custom_headers(response)
-            return u
-            
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Usuario con ID {user_id} no encontrado."
-    )
+
+# --- CONSULTAR USUARIO POR ID (GET) ---
+@router.get(
+    "/{user_id}",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Consultar usuario por ID",
+    description="Devuelve un usuario específico según su ID.",
+    response_description="Usuario encontrado.",
+)
+def get_user_by_id(user: dict = Depends(get_user_or_404)):
+    return user
+
+
+# --- ACTUALIZACIÓN COMPLETA (PUT) — Fase 3 ---
+@router.put(
+    "/{user_id}",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Actualizar usuario completo",
+    description="Reemplaza toda la información de un usuario existente. Requiere todos los campos.",
+    response_description="Usuario actualizado.",
+)
+def replace_user(
+    user_id: int,
+    user_data: UserBase,
+    _: dict = Depends(get_user_or_404),
+):
+    return user_service.replace_user(user_id, user_data.model_dump())
+
+
+# --- ACTUALIZACIÓN PARCIAL (PATCH) — Fase 3 ---
+@router.patch(
+    "/{user_id}",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Actualizar usuario parcialmente",
+    description="Actualiza solo los campos enviados por el cliente. Si no se envía ningún campo, responde 400.",
+    response_description="Usuario actualizado parcialmente.",
+)
+def update_user(
+    user_id: int,
+    user_data: UserUpdate,
+    _: dict = Depends(get_user_or_404),
+):
+    update_dict = user_data.model_dump(exclude_unset=True)
+    return user_service.update_user_partial(user_id, update_dict)
+
+
+# --- ELIMINAR USUARIO (DELETE) — Fase 4 ---
+@router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_200_OK,
+    summary="Eliminar usuario",
+    description="Elimina un usuario existente por su ID.",
+    response_description="Confirmación de eliminación.",
+)
+def delete_user(
+    user_id: int,
+    _: dict = Depends(get_user_or_404),
+):
+    user_service.delete_user(user_id)
+    return {"detail": f"Usuario con ID {user_id} eliminado correctamente."}
