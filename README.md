@@ -1,24 +1,21 @@
 
 
-evidencias:
+# evidencias:
 
-![alt text](<Images2/Captura de pantalla 2026-09-05 075015.png>)
-![alt text](<Images2/Captura de pantalla 2026-09-05 075628.png>)
-![alt text](<Images2/Captura de pantalla 2026-09-05 081618.png>)
-![alt text](<Images2/Captura de pantalla 2026-09-05 081919.png>)
-![alt text](<Images2/Captura de pantalla 2026-09-05 081954.png>)
-![alt text](<Images2/Captura de pantalla 2026-09-05 082042.png>)
-![alt text](<Images2/Captura de pantalla 2026-09-05 082203.png>)
-![alt text](<Images2/Captura de pantalla 2026-09-05 082327.png>)
-![alt text](<Images2/Captura de pantalla 2026-09-05 082543.png>)
-![alt text](<Images2/Captura de pantalla 2026-09-05 082721.png>)
-![alt text](<Images2/Captura de pantalla 2026-09-05 085815.png>)
-![alt text](Images2/image.png)
-![alt text](<Images2/image copy.png>)
+![alt text](<images3/Captura de pantalla 2026-09-11 235624.png>)
+![alt text](<images3/Captura de pantalla 2026-09-11 235718.png>)
+![alt text](<images3/Captura de pantalla 2026-09-12 000157.png>)
+![alt text](<images3/Captura de pantalla 2026-09-12 000336.png>)
+![alt text](<images3/Captura de pantalla 2026-09-12 000522.png>)
+![alt text](<images3/Captura de pantalla 2026-09-12 000634.png>)
+![alt text](<images3/Captura de pantalla 2026-09-12 000850.png>)
+![alt text](<images3/Captura de pantalla 2026-09-12 000953.png>)
+![alt text](<images3/Captura de pantalla 2026-09-12 001041.png>)
+![alt text](<images3/Captura de pantalla 2026-09-12 001147.png>)
 
 # device_systems
 
-API REST para la gestión de usuarios del sistema **device_systems**, construida con FastAPI. Evoluciona la versión anterior (solo GET/POST) hacia una API completa: CRUD total sobre el recurso `users`, manejo profesional de errores, códigos de estado HTTP correctos, documentación automática con Swagger/OpenAPI y reutilización de lógica mediante Dependency Injection.
+Este es mi proyecto **device_systems**: una API REST para la gestión de usuarios, construida con FastAPI. La empecé con operaciones básicas (GET y POST), la evolucioné agregando el CRUD completo (PUT, PATCH, DELETE), manejo de errores y Dependency Injection, y en esta última versión la migré de datos en memoria a persistencia real con **SQLAlchemy** y una base de datos **SQLite**.
 
 ## Tecnologías utilizadas
 
@@ -26,6 +23,8 @@ API REST para la gestión de usuarios del sistema **device_systems**, construida
 - FastAPI
 - Uvicorn (servidor ASGI)
 - Pydantic v2 (validación de datos)
+- SQLAlchemy (ORM para la base de datos)
+- SQLite (motor de base de datos)
 - Git y GitHub (control de versiones)
 
 ## Estructura del proyecto
@@ -33,33 +32,37 @@ API REST para la gestión de usuarios del sistema **device_systems**, construida
 ```
 device_systems/
 ├── app/
-│   ├── main.py                     # Punto de entrada: crea la app, registra rutas y middleware
-│   ├── routes/
-│   │   └── user_routes.py          # Definición de todos los endpoints de /users
+│   ├── main.py                       # Punto de entrada: crea tablas, registra rutas y middleware
+│   ├── database/
+│   │   └── connection.py             # Engine, SessionLocal y Base de SQLAlchemy
+│   ├── models/
+│   │   └── user_model.py             # Modelo SQLAlchemy: representa la tabla 'users'
 │   ├── schemas/
-│   │   └── user_schema.py          # Modelos Pydantic de entrada y salida
+│   │   └── user_schema.py            # Schemas Pydantic de entrada y salida
+│   ├── routes/
+│   │   └── user_routes.py            # Endpoints de /users
 │   ├── services/
-│   │   └── user_service.py         # Lógica de negocio (crear, buscar, actualizar, borrar)
-│   ├── dependencies/
-│   │   └── user_dependencies.py    # Funciones reutilizables con Depends()
-│   └── data/
-│       └── users_db.py             # Simulación de base de datos en memoria
+│   │   └── user_service.py           # Lógica de negocio y consultas SQLAlchemy
+│   └── dependencies/
+│       └── database_dependency.py    # Dependencia get_db() con Depends()
+├── device_systems.db                 # Base de datos SQLite (generada automáticamente, no versionada)
 ├── requirements.txt
 ├── .gitignore
 └── README.md
 ```
 
-Cada capa tiene una única responsabilidad:
+Organicé el código en capas, cada una con una única responsabilidad:
 - **routes**: recibe la petición HTTP y delega en `services`. No contiene lógica de negocio.
-- **schemas**: valida lo que entra y define la forma de lo que sale.
-- **services**: contiene las reglas del negocio (duplicados de correo, existencia del usuario, etc.).
-- **dependencies**: lógica reutilizable inyectada con `Depends()` en varias rutas a la vez.
-- **data**: reemplaza a una base de datos real; toda la información vive en memoria mientras el servidor está corriendo.
+- **schemas**: valida lo que entra y define la forma de lo que sale por la API.
+- **services**: contiene las reglas del negocio (correos duplicados, existencia del usuario) y las consultas a la base de datos.
+- **dependencies**: lógica reutilizable inyectada con `Depends()`, como la sesión de base de datos.
+- **database**: configuración de la conexión (engine, sesión, base declarativa).
+- **models**: representación de las tablas reales en la base de datos.
 
 ## Instalación
 
 ```bash
-git clone <https://github.com/peaceathome316-Tic/device_systems.git>
+git clone <URL-de-mi-repositorio>
 cd device_systems
 
 python -m venv venv
@@ -74,7 +77,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-La API queda disponible en `http://127.0.0.1:8000`.
+La API queda disponible en `http://127.0.0.1:8000`. Al arrancar por primera vez, se crea automáticamente el archivo `device_systems.db` con la tabla `users`.
 
 - Documentación interactiva (Swagger UI): `http://127.0.0.1:8000/docs`
 - Documentación alternativa (ReDoc): `http://127.0.0.1:8000/redoc`
@@ -83,7 +86,7 @@ La API queda disponible en `http://127.0.0.1:8000`.
 
 | Operación | Método | Ruta | Código éxito | Código error |
 |---|---|---|---|---|
-| Listar usuarios (con filtros opcionales `role`, `is_active`) | GET | `/users` | 200 OK | — |
+| Listar usuarios (filtros `role`, `is_active`, orden `order_by`) | GET | `/users` | 200 OK | — |
 | Consultar usuario por ID | GET | `/users/{user_id}` | 200 OK | 404 Not Found |
 | Crear usuario | POST | `/users` | 201 Created | 400 (correo duplicado) / 422 (datos inválidos) |
 | Actualizar usuario completo | PUT | `/users/{user_id}` | 200 OK | 404 Not Found / 400 (correo duplicado) |
@@ -97,22 +100,22 @@ La API queda disponible en `http://127.0.0.1:8000`.
 Request:
 ```json
 {
-  "username": "johndoe",
-  "email": "john@example.com",
-  "role": "operator",
-  "is_active": true,
-  "password": "secret123"
+  "username": "laura",
+  "email": "laura@device.com",
+  "role": "support",
+  "is_active": true
 }
 ```
 
 Respuesta `201 Created`:
 ```json
 {
-  "id": 2,
-  "username": "johndoe",
-  "email": "john@example.com",
-  "role": "operator",
-  "is_active": true
+  "username": "laura",
+  "email": "laura@device.com",
+  "role": "support",
+  "is_active": true,
+  "id": 1,
+  "created_at": "2026-09-12T04:55:05.054374"
 }
 ```
 
@@ -121,11 +124,11 @@ Respuesta `201 Created`:
 Request:
 ```json
 {
-  "role": "support"
+  "is_active": false
 }
 ```
 
-Respuesta `200 OK`: el usuario completo con solo el campo `role` modificado.
+Respuesta `200 OK`: el usuario completo con solo el campo `is_active` modificado; el resto de campos quedan igual.
 
 ### PATCH sin campos — error controlado
 
@@ -161,7 +164,7 @@ Respuesta `400 Bad Request`:
 
 ## Códigos de estado usados
 
-| Código | Significado en esta API |
+| Código | Significado en mi API |
 |---|---|
 | 200 OK | Operación exitosa (GET, PUT, PATCH, DELETE) |
 | 201 Created | Usuario creado exitosamente |
@@ -171,35 +174,51 @@ Respuesta `400 Bad Request`:
 
 ## Uso de Dependency Injection (`Depends()`)
 
-La función `get_user_or_404` (en `app/dependencies/user_dependencies.py`) centraliza la búsqueda de un usuario por ID:
+Creé la función `get_db` en `app/dependencies/database_dependency.py` para entregar una sesión de base de datos a cada endpoint y cerrarla automáticamente al terminar:
 
 ```python
-def get_user_or_404(user_id: int) -> dict:
-    user = find_user(user_id)
-    if user is None:
-        raise HTTPException(status_code=404, detail=f"Usuario con ID {user_id} no encontrado.")
-    return user
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 ```
 
-Se inyecta en `GET /users/{id}`, `PUT /users/{id}`, `PATCH /users/{id}` y `DELETE /users/{id}` mediante `Depends(get_user_or_404)`. Esto evita repetir el mismo bloque de "buscar usuario o lanzar 404" en cada endpoint: la validación ocurre antes de que el código de la ruta se ejecute, y si el usuario no existe, la petición nunca llega a la lógica del endpoint.
+La inyecto con `Depends(get_db)` en todos los endpoints de `user_routes.py`. Esto me evita abrir y cerrar sesiones manualmente en cada ruta, y garantiza que la sesión se cierre incluso si ocurre un error durante la petición.
+
+## Diferencia entre modelo SQLAlchemy y schema Pydantic
+
+Aunque ambos describen la forma de un "usuario", en mi proyecto cumplen roles distintos:
+
+- **Modelo SQLAlchemy** (`app/models/user_model.py`): representa una **tabla real en la base de datos**. Defino ahí las columnas, sus tipos (`Integer`, `String`, `Boolean`, `DateTime`) y restricciones a nivel de base de datos (`nullable=False`, `unique=True`). Es lo que SQLAlchemy usa para generar el SQL y guardar o leer filas en `device_systems.db`.
+
+- **Schema Pydantic** (`app/schemas/user_schema.py`): representa la **forma de los datos que entran y salen por la API** (el JSON del request/response). No tiene relación directa con la base de datos; su trabajo es validar lo que envía el cliente (`UserCreate`, `UserPatch`) y darle forma a lo que devuelvo (`UserResponse`).
+
+En resumen: el modelo le habla a la base de datos, y el schema le habla al cliente de la API. Por eso pude definir `role` como `String` en el modelo (columna de texto simple) y como un `Enum` (`UserRole`) en el schema (para validar que solo se acepten `admin`, `support` o `user`). Separarlos me permite cambiar cómo valido la entrada sin tener que tocar la estructura de la tabla, y viceversa.
 
 ## Manejo de errores implementado
 
-Todos los errores previsibles se controlan con `HTTPException`, devolviendo un JSON consistente `{"detail": "..."}`:
+Controlo todos los errores previsibles con `HTTPException`, devolviendo siempre un JSON consistente `{"detail": "..."}`:
 
-- **Usuario no encontrado** → 404, vía la dependencia `get_user_or_404`.
-- **Correo electrónico duplicado** → 400, validado en `user_service.py` tanto en creación (`POST`) como en reemplazo (`PUT`) y actualización parcial (`PATCH`).
-- **Actualización sin datos (PATCH vacío)** → 400, validado en `user_service.update_user_partial`.
-- **Datos inválidos** (email mal formado, campos faltantes, tipos incorrectos) → 422, generado automáticamente por la validación de Pydantic antes de que la petición llegue al endpoint.
+- **Usuario no encontrado** → 404, validado en `user_service.get_user_by_id` antes de cualquier operación sobre ese usuario.
+- **Correo electrónico duplicado** → 400, verificado en `user_service.py` tanto en creación (`POST`) como en reemplazo (`PUT`) y actualización parcial (`PATCH`), consultando directamente contra la base de datos.
+- **Actualización sin datos (PATCH vacío)** → 400, validado en `update_user_partial`.
+- **Datos inválidos** (email mal formado, campos faltantes, rol no permitido) → 422, generado automáticamente por la validación de Pydantic antes de que la petición llegue a mi código.
 
-Además, un middleware en `main.py` agrega las cabeceras `X-App-Name` y `X-API-Version` a **todas** las respuestas, incluidas las de error.
+Además, un middleware en `main.py` agrega las cabeceras `X-App-Name` y `X-API-Version` a todas las respuestas, incluidas las de error.
 
-## Flujo de ramas Git usado en este proyecto
+## Flujo de ramas Git que usé en este proyecto
 
-- **`main`**: contiene únicamente la versión inicial del proyecto (configuración base, GET y POST). No recibe cambios de esta actividad.
-- **`develop`**: rama de integración creada a partir de `main`.
-- **`feature`**: rama donde se desarrolló el CRUD completo de esta actividad (PUT, PATCH, DELETE, reestructuración en capas, Dependency Injection). Se fusionó hacia `develop` una vez probada.
+- **`main`**: contiene únicamente la versión inicial del proyecto. No la toco directamente.
+- **`develop`**: rama de integración, donde se fusiona cada actividad ya probada.
+- **Ramas `feature`**: cada evolución del proyecto la desarrollé en su propia rama (`feature` para el CRUD completo, `db9_feature` para la migración a base de datos), y la fusioné a `develop` una vez probada.
 
-Reflexión final sobre la evolución del proyecto
 
-Esta actividad me mostró cómo una API simple (solo GET y POST) puede evolucionar a algo más profesional. Separar el código en capas (routes, schemas, services, dependencies) hizo que agregar PUT, PATCH y DELETE fuera mucho más ordenado, sin tocar lo que ya funcionaba. Depends() me ayudó a dejar de repetir la validación de "usuario no encontrado" en cada endpoint, y el manejo de errores con HTTPException hizo que la API respondiera de forma clara ante casos como correos duplicados o IDs inexistentes. Trabajar con ramas (main, develop, feature) también me enseñó a probar cambios sin arriesgar lo que ya estaba estable.
+## Reflexión final sobre la importancia de la persistencia en una API
+
+Trabajar con datos en memoria me ha sirvió para aprender la lógica de los endpoints, pero tenía una limitación grande, toda la información se perdía cada vez que reiniciaba el servidor. Migrar a SQLAlchemy con SQLite me hizo entender que una API real necesita persistencia — los datos deben sobrevivir más allá de la ejecución del programa.
+
+También aprendí que separar el modelo (base de datos) del schema (API) no es una complicación innecesaria, sino lo que me permite que ambas partes evolucionen de forma independiente. Usar un ORM como SQLAlchemy en vez de escribir SQL a mano me pareció más seguro (evita inyecciones SQL) y más fácil de mantener, porque las consultas quedan escritas como código Python en vez de strings de SQL sueltos por el proyecto.
+
+Por otro lado, `Depends()` creo que volvió a demostrarme su utilidad: antes lo usé para evitar repetir la búsqueda de usuarios, y ahora lo usé para manejar la sesión de base de datos sin tener que abrirla y cerrarla manualmente en cada endpoint. Y trabajar con ramas Git (`main`, `develop`, `feature`) me ayudó otra vez a probar todos estos cambios grandes sin arriesgar la versión estable del proyecto.
