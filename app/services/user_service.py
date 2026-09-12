@@ -1,89 +1,106 @@
+from typing import Optional
+
 from fastapi import HTTPException, status
-from typing import List, Optional
+from sqlalchemy import asc
+from sqlalchemy.orm import Session
 
-from app.data.users_db import db_users, get_next_id
+from app.models.user_model import User
+from app.schemas.user_schema import UserCreate, UserPatch, UserUpdate
 
 
-def list_users(role: Optional[str] = None, is_active: Optional[bool] = None) -> List[dict]:
-    result = db_users
+def get_users(
+    db: Session,
+    role: Optional[str] = None,
+    is_active: Optional[bool] = None,
+    order_by: Optional[str] = None,
+):
+    query = db.query(User)
+
     if role is not None:
-        result = [u for u in result if u["role"] == role]
+        query = query.filter(User.role == role)
     if is_active is not None:
-        result = [u for u in result if u["is_active"] == is_active]
-    return result
+        query = query.filter(User.is_active == is_active)
+
+    if order_by == "name":
+        query = query.order_by(asc(User.username))
+    elif order_by == "created_at":
+        query = query.order_by(asc(User.created_at))
+
+    return query.all()
 
 
-def find_user(user_id: int) -> Optional[dict]:
-    return next((u for u in db_users if u["id"] == user_id), None)
-
-
-def email_taken(email: str, exclude_id: Optional[int] = None) -> bool:
-    return any(u["email"] == email and u["id"] != exclude_id for u in db_users)
-
-
-def create_user(user_data: dict) -> dict:
-    if email_taken(user_data["email"]):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El correo electrónico ya está registrado en device_systems.",
-        )
-    user_data["id"] = get_next_id()
-    db_users.append(user_data)
-    return user_data
-
-
-def replace_user(user_id: int, new_data: dict) -> dict:
-    """Reemplazo completo (PUT). Conserva la password original si existía."""
-    current = find_user(user_id)
-    if current is None:
+def get_user_by_id(db: Session, user_id: int) -> User:
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Usuario con ID {user_id} no encontrado.",
         )
-    if email_taken(new_data["email"], exclude_id=user_id):
+    return user
+
+
+def get_user_by_email(db: Session, email: str) -> Optional[User]:
+    return db.query(User).filter(User.email == email).first()
+
+
+def create_user(db: Session, user_data: UserCreate) -> User:
+    if get_user_by_email(db, user_data.email):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El correo electrónico ya está registrado en device_systems.",
+        )
+    new_user = User(**user_data.model_dump())
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+
+def replace_user(db: Session, user_id: int, user_data: UserUpdate) -> User:
+    user = get_user_by_id(db, user_id)
+
+    duplicate = get_user_by_email(db, user_data.email)
+    if duplicate and duplicate.id != user_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El correo electrónico ya está registrado en device_systems.",
         )
 
-    new_data = new_data.copy()
-    new_data["id"] = user_id
-    if "password" in current:
-        new_data["password"] = current["password"]
+    for field, value in user_data.model_dump().items():
+        setattr(user, field, value)
 
-    index = db_users.index(current)
-    db_users[index] = new_data
-    return new_data
+    db.commit()
+    db.refresh(user)
+    return user
 
 
-def update_user_partial(user_id: int, update_data: dict) -> dict:
-    """Actualización parcial (PATCH)."""
-    current = find_user(user_id)
-    if current is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Usuario con ID {user_id} no encontrado.",
-        )
-    if not update_data:
+def update_user_partial(db: Session, user_id: int, patch_data: UserPatch) -> User:
+    user = get_user_by_id(db, user_id)
+
+    update_dict = patch_data.model_dump(exclude_unset=True)
+    if not update_dict:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No se enviaron campos para actualizar.",
         )
-    if "email" in update_data and email_taken(update_data["email"], exclude_id=user_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El correo electrónico ya está registrado en device_systems.",
-        )
 
-    current.update(update_data)
-    return current
+    if "email" in update_dict:
+        duplicate = get_user_by_email(db, update_dict["email"])
+        if duplicate and duplicate.id != user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El correo electrónico ya está registrado en device_systems.",
+            )
+
+    for field, value in update_dict.items():
+        setattr(user, field, value)
+
+    db.commit()
+    db.refresh(user)
+    return user
 
 
-def delete_user(user_id: int) -> None:
-    current = find_user(user_id)
-    if current is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Usuario con ID {user_id} no encontrado.",
-        )
-    db_users.remove(current)
+def delete_user(db: Session, user_id: int) -> None:
+    user = get_user_by_id(db, user_id)
+    db.delete(user)
+    db.commit()
