@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.dependencies.database_dependency import get_db
+from app.schemas.loan_schema import LoanDetailResponse
 from app.schemas.user_schema import UserCreate, UserPatch, UserResponse, UserRole, UserUpdate
-from app.services import user_service
+from app.services import loan_service, user_service
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -52,6 +53,19 @@ def list_users(
 )
 def get_user(user_id: int, db: Session = Depends(get_db)):
     return user_service.get_user_by_id(db, user_id)
+
+
+# --- CONSULTA CON JOIN: préstamos de un usuario (Fase 10) ---
+@router.get(
+    "/{user_id}/loans",
+    response_model=List[LoanDetailResponse],
+    status_code=status.HTTP_200_OK,
+    summary="Consultar préstamos de un usuario",
+    description="Devuelve todos los préstamos asociados a un usuario, con la información del dispositivo incluida.",
+    response_description="Lista de préstamos del usuario.",
+)
+def get_user_loans(user_id: int, db: Session = Depends(get_db)):
+    return loan_service.get_user_loans_details(db, user_id)
 
 
 # --- ACTUALIZACIÓN COMPLETA (PUT) ---
