@@ -3,7 +3,9 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.dependencies.auth_dependency import require_admin, require_admin_or_support
 from app.dependencies.database_dependency import get_db
+from app.models.user_model import User
 from app.schemas.device_schema import (
     DeviceCreate,
     DevicePatch,
@@ -17,20 +19,27 @@ from app.services import device_service, loan_service
 router = APIRouter(prefix="/devices", tags=["Devices"])
 
 
-# --- CREAR DISPOSITIVO (POST) ---
+# --- CREAR DISPOSITIVO (POST) --- Requiere rol admin o support
 @router.post(
     "/",
     response_model=DeviceResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Registrar un nuevo dispositivo",
-    description="Crea un nuevo dispositivo tecnológico disponible para préstamo. Valida que el número de serie no esté duplicado.",
+    description=(
+        "Crea un nuevo dispositivo tecnológico disponible para préstamo. "
+        "Requiere rol admin o support. Valida que el número de serie no esté duplicado."
+    ),
     response_description="Dispositivo creado exitosamente.",
 )
-def create_device(device: DeviceCreate, db: Session = Depends(get_db)):
+def create_device(
+    device: DeviceCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_support),
+):
     return device_service.create_device(db, device)
 
 
-# --- LISTAR / FILTRAR DISPOSITIVOS (GET) ---
+# --- LISTAR / FILTRAR DISPOSITIVOS (GET) --- Público (no protegido según la guía)
 @router.get(
     "/",
     response_model=List[DeviceResponse],
@@ -55,7 +64,7 @@ def list_devices(
     )
 
 
-# --- CONSULTAR DISPOSITIVO POR ID (GET) ---
+# --- CONSULTAR DISPOSITIVO POR ID (GET) --- Público
 @router.get(
     "/{device_id}",
     response_model=DeviceResponse,
@@ -68,53 +77,67 @@ def get_device(device_id: int, db: Session = Depends(get_db)):
     return device_service.get_device_by_id(db, device_id)
 
 
-# --- CONSULTA CON JOIN: historial de préstamos de un dispositivo (Fase 10) ---
+# --- CONSULTA CON JOIN: historial de préstamos de un dispositivo --- Público
 @router.get(
     "/{device_id}/loans",
     response_model=List[LoanDetailResponse],
     status_code=status.HTTP_200_OK,
     summary="Consultar historial de préstamos de un dispositivo",
-    description="Devuelve todos los préstamos (históricos y activos) asociados a un dispositivo, con la información del usuario incluida.",
+    description="Devuelve todos los préstamos asociados a un dispositivo, con la información del usuario incluida.",
     response_description="Lista de préstamos del dispositivo.",
 )
 def get_device_loans(device_id: int, db: Session = Depends(get_db)):
     return loan_service.get_device_loans_details(db, device_id)
 
 
-# --- ACTUALIZACIÓN COMPLETA (PUT) ---
+# --- ACTUALIZACIÓN COMPLETA (PUT) --- Requiere rol admin o support
 @router.put(
     "/{device_id}",
     response_model=DeviceResponse,
     status_code=status.HTTP_200_OK,
     summary="Actualizar dispositivo completo",
-    description="Reemplaza todos los campos de un dispositivo existente.",
+    description="Reemplaza todos los campos de un dispositivo existente. Requiere rol admin o support.",
     response_description="Dispositivo actualizado.",
 )
-def replace_device(device_id: int, device_data: DeviceUpdate, db: Session = Depends(get_db)):
+def replace_device(
+    device_id: int,
+    device_data: DeviceUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_support),
+):
     return device_service.replace_device(db, device_id, device_data)
 
 
-# --- ACTUALIZACIÓN PARCIAL (PATCH) ---
+# --- ACTUALIZACIÓN PARCIAL (PATCH) --- Requiere rol admin o support
 @router.patch(
     "/{device_id}",
     response_model=DeviceResponse,
     status_code=status.HTTP_200_OK,
     summary="Actualizar dispositivo parcialmente",
-    description="Actualiza solo los campos enviados por el cliente.",
+    description="Actualiza solo los campos enviados por el cliente. Requiere rol admin o support.",
     response_description="Dispositivo actualizado parcialmente.",
 )
-def update_device(device_id: int, device_data: DevicePatch, db: Session = Depends(get_db)):
+def update_device(
+    device_id: int,
+    device_data: DevicePatch,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin_or_support),
+):
     return device_service.update_device_partial(db, device_id, device_data)
 
 
-# --- ELIMINAR DISPOSITIVO (DELETE) ---
+# --- ELIMINAR DISPOSITIVO (DELETE) --- Requiere rol admin
 @router.delete(
     "/{device_id}",
     status_code=status.HTTP_200_OK,
     summary="Eliminar dispositivo",
-    description="Elimina un dispositivo existente.",
+    description="Elimina un dispositivo existente. Requiere rol admin.",
     response_description="Confirmación de eliminación.",
 )
-def delete_device(device_id: int, db: Session = Depends(get_db)):
+def delete_device(
+    device_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
     device_service.delete_device(db, device_id)
     return {"detail": f"Dispositivo con ID {device_id} eliminado correctamente."}

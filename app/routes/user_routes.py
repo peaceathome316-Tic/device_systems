@@ -1,9 +1,12 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.orm import Session
 
+from app.dependencies.auth_dependency import get_current_active_user
 from app.dependencies.database_dependency import get_db
+from app.middlewares.rate_limiter import limiter
+from app.models.user_model import User
 from app.schemas.loan_schema import LoanDetailResponse
 from app.schemas.user_schema import UserCreate, UserPatch, UserResponse, UserRole, UserUpdate
 from app.services import loan_service, user_service
@@ -11,7 +14,7 @@ from app.services import loan_service, user_service
 router = APIRouter(prefix="/users", tags=["Users"])
 
 
-# --- CREAR USUARIO (POST) ---
+# --- CREAR USUARIO (POST) --- (sin proteger: el registro "oficial" es /auth/register)
 @router.post(
     "/",
     response_model=UserResponse,
@@ -24,38 +27,48 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
     return user_service.create_user(db, user)
 
 
-# --- LISTAR / FILTRAR / ORDENAR USUARIOS (GET) ---
+# --- LISTAR / FILTRAR / ORDENAR USUARIOS (GET) --- Requiere estar autenticado
 @router.get(
     "/",
     response_model=List[UserResponse],
     status_code=status.HTTP_200_OK,
     summary="Listar usuarios",
-    description="Devuelve los usuarios almacenados en la base de datos, con filtros por rol/estado y ordenamiento opcional.",
+    description=(
+        "Devuelve los usuarios almacenados en la base de datos, con filtros por rol/estado y "
+        "ordenamiento opcional. Requiere estar autenticado. Límite: 30 solicitudes por minuto."
+    ),
     response_description="Lista de usuarios.",
 )
+@limiter.limit("30/minute")
 def list_users(
+    request: Request,
     db: Session = Depends(get_db),
     role: Optional[UserRole] = Query(None, description="Filtrar por rol (admin, support, user)"),
     is_active: Optional[bool] = Query(None, description="Filtrar por estado activo/inactivo"),
     order_by: Optional[str] = Query(None, description="Ordenar por 'name' o 'created_at'"),
+    current_user: User = Depends(get_current_active_user),
 ):
     return user_service.get_users(db, role=role, is_active=is_active, order_by=order_by)
 
 
-# --- CONSULTAR USUARIO POR ID (GET) ---
+# --- CONSULTAR USUARIO POR ID (GET) --- Requiere estar autenticado
 @router.get(
     "/{user_id}",
     response_model=UserResponse,
     status_code=status.HTTP_200_OK,
     summary="Consultar usuario por ID",
-    description="Busca un usuario específico en la base de datos.",
+    description="Busca un usuario específico en la base de datos. Requiere estar autenticado.",
     response_description="Usuario encontrado.",
 )
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
     return user_service.get_user_by_id(db, user_id)
 
 
-# --- CONSULTA CON JOIN: préstamos de un usuario (Fase 10) ---
+# --- CONSULTA CON JOIN: préstamos de un usuario ---
 @router.get(
     "/{user_id}/loans",
     response_model=List[LoanDetailResponse],
@@ -64,7 +77,11 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
     description="Devuelve todos los préstamos asociados a un usuario, con la información del dispositivo incluida.",
     response_description="Lista de préstamos del usuario.",
 )
-def get_user_loans(user_id: int, db: Session = Depends(get_db)):
+def get_user_loans(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
     return loan_service.get_user_loans_details(db, user_id)
 
 
@@ -77,7 +94,12 @@ def get_user_loans(user_id: int, db: Session = Depends(get_db)):
     description="Reemplaza todos los campos de un usuario existente en la base de datos.",
     response_description="Usuario actualizado.",
 )
-def replace_user(user_id: int, user_data: UserUpdate, db: Session = Depends(get_db)):
+def replace_user(
+    user_id: int,
+    user_data: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
     return user_service.replace_user(db, user_id, user_data)
 
 
@@ -90,7 +112,12 @@ def replace_user(user_id: int, user_data: UserUpdate, db: Session = Depends(get_
     description="Actualiza solo los campos enviados por el cliente. Si no se envía ningún campo, responde 400.",
     response_description="Usuario actualizado parcialmente.",
 )
-def update_user(user_id: int, user_data: UserPatch, db: Session = Depends(get_db)):
+def update_user(
+    user_id: int,
+    user_data: UserPatch,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
     return user_service.update_user_partial(db, user_id, user_data)
 
 
@@ -102,6 +129,10 @@ def update_user(user_id: int, user_data: UserPatch, db: Session = Depends(get_db
     description="Elimina un usuario existente de la base de datos.",
     response_description="Confirmación de eliminación.",
 )
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
     user_service.delete_user(db, user_id)
     return {"detail": f"Usuario con ID {user_id} eliminado correctamente."}

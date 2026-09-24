@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import asc
 from sqlalchemy.orm import Session
 
+from app.auth.security import get_password_hash
 from app.models.user_model import User
 from app.schemas.user_schema import UserCreate, UserPatch, UserUpdate
 
@@ -49,7 +50,10 @@ def create_user(db: Session, user_data: UserCreate) -> User:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El correo electrónico ya está registrado en device_systems.",
         )
-    new_user = User(**user_data.model_dump())
+
+    data = user_data.model_dump(exclude={"password"})
+    new_user = User(**data, hashed_password=get_password_hash(user_data.password))
+
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -66,6 +70,7 @@ def replace_user(db: Session, user_id: int, user_data: UserUpdate) -> User:
             detail="El correo electrónico ya está registrado en device_systems.",
         )
 
+    # UserUpdate no incluye contraseña: se conserva el hash existente
     for field, value in user_data.model_dump().items():
         setattr(user, field, value)
 

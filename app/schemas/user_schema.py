@@ -19,12 +19,12 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    """Body esperado en POST /users."""
-    pass
+    """Body esperado en POST /users. La contraseña se convierte en hash antes de guardarse."""
+    password: str = Field(..., min_length=8, examples=["Secret123"])
 
 
 class UserUpdate(UserBase):
-    """Body esperado en PUT /users/{id}: reemplazo completo, todo obligatorio."""
+    """Body esperado en PUT /users/{id}: reemplazo completo. No modifica la contraseña."""
     pass
 
 
